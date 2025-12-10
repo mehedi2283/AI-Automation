@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Briefcase, Image as ImageIcon, Layers, Info, Users, X, LogOut, Calendar } from 'lucide-react';
+import { LayoutDashboard, Briefcase, Image as ImageIcon, Layers, Info, Users, X, LogOut, Calendar, MessageSquare } from 'lucide-react';
 import { AppView } from '../types';
 
 interface SidebarProps {
@@ -63,6 +63,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, cmsSection, onCha
                 >
                 <Calendar className="w-4 h-4" />
                 Appointments
+                </button>
+                <button
+                onClick={() => { onChangeView(AppView.CHATS); onClose(); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    currentView === AppView.CHATS
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                }`}
+                >
+                <MessageSquare className="w-4 h-4" />
+                Live Chats
                 </button>
             </div>
           </div>

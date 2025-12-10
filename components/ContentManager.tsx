@@ -185,6 +185,23 @@ export const ContentManager: React.FC<ContentManagerProps> = ({
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; id: string | null; type: string | null; title: string; message: string }>({ 
     isOpen: false, id: null, type: null, title: '', message: '' 
   });
+  const [shouldRenderDeleteModal, setShouldRenderDeleteModal] = useState(false);
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+
+  // Handle Delete Modal Animation
+  useEffect(() => {
+    if (deleteConfirm.isOpen) {
+        setShouldRenderDeleteModal(true);
+        // Double RAF for smoother entry
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => setIsDeleteModalVisible(true));
+        });
+    } else {
+        setIsDeleteModalVisible(false);
+        const timer = setTimeout(() => setShouldRenderDeleteModal(false), 300);
+        return () => clearTimeout(timer);
+    }
+  }, [deleteConfirm.isOpen]);
 
   // --- CUSTOM DRAG STATE ---
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -397,15 +414,35 @@ export const ContentManager: React.FC<ContentManagerProps> = ({
         `}</style>
 
         {/* --- Global Delete Modal --- */}
-        {deleteConfirm.isOpen && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                <div className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={() => setDeleteConfirm({...deleteConfirm, isOpen: false})}/>
-                <div className="relative bg-slate-900 border border-slate-700 rounded-xl p-6 max-w-sm w-full animate-fade-in-up">
-                    <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2"><AlertTriangle className="text-red-500"/> Confirm Delete</h3>
-                    <p className="text-slate-400 mb-6">{deleteConfirm.message}</p>
+        {shouldRenderDeleteModal && (
+            <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 transition-all duration-300 ${isDeleteModalVisible ? 'opacity-100' : 'opacity-0'}`}>
+                <div 
+                    className="absolute inset-0 bg-black/80 backdrop-blur-sm" 
+                    onClick={() => setDeleteConfirm({...deleteConfirm, isOpen: false})}
+                />
+                <div 
+                    className={`
+                        relative bg-slate-900 border border-slate-700 rounded-xl p-6 max-w-sm w-full shadow-2xl
+                        transition-all duration-300 cubic-bezier(0.34, 1.56, 0.64, 1)
+                        ${isDeleteModalVisible ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}
+                    `}
+                >
+                    <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                        <AlertTriangle className="text-red-500 w-5 h-5"/> Confirm Delete
+                    </h3>
+                    <p className="text-slate-400 mb-6 leading-relaxed">{deleteConfirm.message}</p>
                     <div className="flex justify-end gap-3">
-                        <button onClick={() => setDeleteConfirm({...deleteConfirm, isOpen: false})} className="px-4 py-2 text-slate-300 hover:bg-slate-800 rounded-lg">Cancel</button>
-                        <button onClick={handleConfirmDelete} disabled={isSaving} className="px-4 py-2 bg-red-600 text-white rounded-lg font-bold">
+                        <button 
+                            onClick={() => setDeleteConfirm({...deleteConfirm, isOpen: false})} 
+                            className="px-4 py-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors font-medium"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={handleConfirmDelete} 
+                            disabled={isSaving} 
+                            className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold shadow-lg shadow-red-900/20 flex items-center gap-2"
+                        >
                             {isSaving ? <Loader2 className="w-4 h-4 animate-spin"/> : "Delete"}
                         </button>
                     </div>
@@ -544,20 +581,79 @@ export const ContentManager: React.FC<ContentManagerProps> = ({
         {/* --- TAB: CLIENTS --- */}
         {activeTab === 'CLIENTS' && (
             <>
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 mb-8">
-                  <h3 className="text-white font-bold mb-4">Add Client</h3>
-                  <div className="flex gap-4">
-                      <input value={newClientName} onChange={e => setNewClientName(e.target.value)} placeholder="Client Name" className="bg-slate-950 border border-slate-700 rounded-lg p-3 text-white flex-1"/>
-                      <input value={newClientUrl} onChange={e => setNewClientUrl(e.target.value)} placeholder="Logo URL" className="bg-slate-950 border border-slate-700 rounded-lg p-3 text-white flex-[2]"/>
-                      <button onClick={async () => {
-                          if(!newClientUrl) return;
-                          setIsSaving(true);
-                          try {
-                              const saved = await api.clients.create({ id: crypto.randomUUID(), name: newClientName || "Client", imageUrl: newClientUrl });
-                              setClients(prev => [saved, ...prev]);
-                              setNewClientName(''); setNewClientUrl('');
-                          } catch(e) { alert("Error"); } finally { setIsSaving(false); }
-                      }} disabled={isSaving} className="px-6 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-500">Add</button>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 mb-8 shadow-lg">
+                  <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 bg-blue-600/20 rounded-lg border border-blue-600/30">
+                           <Plus className="w-5 h-5 text-blue-500" />
+                      </div>
+                      <div>
+                           <h3 className="text-white font-bold text-lg">Add New Client</h3>
+                           <p className="text-slate-400 text-xs">Upload a logo to display in the Trusted By section.</p>
+                      </div>
+                  </div>
+                  
+                  <div className="flex flex-col md:flex-row gap-6 items-start">
+                      {/* Image Preview */}
+                      <div className="shrink-0 w-full md:w-auto flex justify-center md:block">
+                           <div className="w-32 h-20 bg-slate-950 border border-slate-700 border-dashed rounded-lg flex items-center justify-center overflow-hidden relative group">
+                              {newClientUrl ? (
+                                  <img src={newClientUrl} alt="Preview" className="w-full h-full object-contain p-2" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                              ) : (
+                                  <ImageIcon className="w-8 h-8 text-slate-700" />
+                              )}
+                              <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                  <span className="text-xs text-white font-medium">Preview</span>
+                              </div>
+                           </div>
+                      </div>
+
+                      {/* Inputs */}
+                      <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <div className="space-y-1.5">
+                              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Client Name</label>
+                              <div className="relative">
+                                  <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                                  <input 
+                                      value={newClientName} 
+                                      onChange={e => setNewClientName(e.target.value)} 
+                                      placeholder="e.g. Acme Corp" 
+                                      className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-blue-600 outline-none transition-all placeholder:text-slate-600"
+                                  />
+                              </div>
+                           </div>
+                           
+                           <div className="space-y-1.5">
+                              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Logo URL</label>
+                              <div className="relative">
+                                  <Link className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                                  <input 
+                                      value={newClientUrl} 
+                                      onChange={e => setNewClientUrl(e.target.value)} 
+                                      placeholder="https://..." 
+                                      className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-blue-600 outline-none transition-all placeholder:text-slate-600"
+                                  />
+                              </div>
+                           </div>
+
+                           <div className="md:col-span-2 flex justify-end pt-2">
+                               <button 
+                                  onClick={async () => {
+                                      if(!newClientUrl) return;
+                                      setIsSaving(true);
+                                      try {
+                                          const saved = await api.clients.create({ id: crypto.randomUUID(), name: newClientName || "Client", imageUrl: newClientUrl });
+                                          setClients(prev => [saved, ...prev]);
+                                          setNewClientName(''); setNewClientUrl('');
+                                      } catch(e) { alert("Error"); } finally { setIsSaving(false); }
+                                  }} 
+                                  disabled={isSaving || !newClientUrl} 
+                                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold flex items-center gap-2 transition-all shadow-lg shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                  {isSaving ? <Loader2 className="w-4 h-4 animate-spin"/> : <Plus className="w-4 h-4"/>}
+                                  Add Client
+                              </button>
+                           </div>
+                      </div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">

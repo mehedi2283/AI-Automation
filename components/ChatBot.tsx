@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, Send, Sparkles, Bot, ArrowUp, Loader2 } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
 
 interface Message {
   role: 'user' | 'model';
@@ -16,28 +15,10 @@ export const ChatBot: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatSessionRef = useRef<any>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // Initialize Chat Session
-  useEffect(() => {
-    if (isOpen && !chatSessionRef.current) {
-      try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        chatSessionRef.current = ai.chats.create({
-          model: 'gemini-2.5-flash',
-          config: {
-            systemInstruction: `You are the Octopi Digital AI Assistant.
-            Tone: Friendly, helpful, professional, and concise.
-            Context: You are on a digital agency website specializing in AI & Automation.
-            Goal: Answer visitor questions about services (GHL, AI Agents, Dev) and encourage booking a consultation.`
-          }
-        });
-      } catch (e) {
-        console.error("Failed to initialize AI chat", e);
-      }
-    }
-  }, [isOpen]);
+  
+  // Create a persistent session ID for the user's visit
+  const sessionId = useRef(`session_${Math.random().toString(36).substr(2, 9)}`);
 
   // Auto-scroll
   useEffect(() => {
@@ -60,15 +41,55 @@ export const ChatBot: React.FC = () => {
     setIsLoading(true);
 
     try {
-      if (!chatSessionRef.current) {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        chatSessionRef.current = ai.chats.create({ model: 'gemini-2.5-flash' });
+      const response = await fetch('https://n8n.srv915514.hstgr.cloud/webhook/automation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+              message: userMsg,
+              sessionId: sessionId.current
+          })
+      });
+
+      if (!response.ok) {
+          throw new Error('Network response was not ok');
       }
 
-      const result = await chatSessionRef.current.sendMessage({ message: userMsg });
-      setMessages(prev => [...prev, { role: 'model', text: result.text }]);
+      const textResponse = await response.text();
+      let botText = "";
+
+      try {
+          // Try parsing JSON response
+          const data = JSON.parse(textResponse);
+          
+          if (typeof data === 'string') {
+              botText = data;
+          } else if (data.output) {
+              botText = data.output;
+          } else if (data.text) {
+              botText = data.text;
+          } else if (data.message) {
+              botText = data.message;
+          } else if (data.content) {
+              botText = data.content;
+          } else if (Array.isArray(data) && data[0]?.output) {
+              botText = data[0].output;
+          } else {
+              // Fallback for unknown JSON structure but valid JSON
+              botText = JSON.stringify(data);
+          }
+      } catch (e) {
+          // If not JSON, use raw text if available
+          if (textResponse && textResponse.trim().length > 0) {
+              botText = textResponse;
+          } else {
+              botText = "I processed your request.";
+          }
+      }
+
+      setMessages(prev => [...prev, { role: 'model', text: botText }]);
     } catch (error) {
-      setMessages(prev => [...prev, { role: 'model', text: "Sorry, I lost connection for a second. Could you say that again?" }]);
+      console.error(error);
+      setMessages(prev => [...prev, { role: 'model', text: "Sorry, I'm having trouble connecting to the server. Please try again later." }]);
     } finally {
       setIsLoading(false);
     }
@@ -190,7 +211,7 @@ export const ChatBot: React.FC = () => {
             </div>
             <div className="text-center mt-3">
                 <span className="text-[10px] text-slate-400 flex items-center justify-center gap-1 font-medium">
-                    Powered by <span className="text-slate-600">Gemini 2.5</span>
+                    Powered by <span className="text-slate-600">Octopi AI</span>
                 </span>
             </div>
         </div>

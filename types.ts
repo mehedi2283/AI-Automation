@@ -23,7 +23,8 @@ export enum AppView {
   EDITOR = 'EDITOR',
   LOGS = 'LOGS',
   CMS = 'CMS',
-  BOOKINGS = 'BOOKINGS', // New view for Appointments
+  BOOKINGS = 'BOOKINGS',
+  CHATS = 'CHATS', // New view
 }
 
 export interface Workflow {
@@ -121,4 +122,19 @@ export interface Booking {
   status: string;
   source: string;
   createdAt: string;
+}
+
+// Data structure matching the MongoDB chat_widget collection
+export interface DbChatMessage {
+  type: 'human' | 'ai';
+  data: any; // Can be object with text/content or string
+  timestamp?: string;
+}
+
+export interface ChatSession {
+  _id: string;
+  sessionId: string;
+  messages: DbChatMessage[];
+  createdAt?: string;
+  updatedAt?: string;
 }

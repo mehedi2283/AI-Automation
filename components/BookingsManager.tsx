@@ -107,15 +107,15 @@ export const BookingsManager: React.FC = () => {
 
   return (
     <div className="animate-fade-in max-w-7xl mx-auto relative">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
             <h2 className="text-3xl font-bold text-white mb-2">Appointments</h2>
-            <p className="text-slate-400">Manage incoming booking requests from website and webhooks.</p>
+            <p className="text-slate-400 text-sm md:text-base">Manage incoming booking requests from website and webhooks.</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
             {error && (
                 <span className="text-red-400 text-sm font-medium flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4" /> Connection Error
+                    <AlertTriangle className="w-4 h-4" /> <span className="hidden sm:inline">Connection Error</span>
                 </span>
             )}
             <div className="bg-slate-900 border border-slate-800 px-4 py-2 rounded-lg text-slate-300 font-mono text-sm">
@@ -131,7 +131,8 @@ export const BookingsManager: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+      {/* --- DESKTOP VIEW --- */}
+      <div className="hidden md:block bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-400">
             <thead className="bg-slate-950 text-slate-200 font-medium uppercase tracking-wider text-xs border-b border-slate-800">
@@ -164,9 +165,8 @@ export const BookingsManager: React.FC = () => {
                            </div>
                            <h3 className="text-white font-bold">Unable to Load Appointments</h3>
                            <p className="text-slate-500">{error}</p>
-                           <p className="text-xs text-slate-600">Please ensure the backend server is deployed with the latest code.</p>
                            <button onClick={fetchBookings} className="mt-2 px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold">
-                               Retry Connection
+                               Retry
                            </button>
                        </div>
                    </td>
@@ -201,21 +201,18 @@ export const BookingsManager: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                        {(booking.source === 'webhook' || booking.source === 'website_widget') ? (
-                            // Default styling for generic sources
                             <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-bold border ${booking.source === 'webhook' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
                                 {booking.source === 'webhook' ? <Webhook className="w-3 h-3" /> : <Globe className="w-3 h-3" />} 
                                 {booking.source === 'website_widget' ? 'Widget' : 'Webhook'}
                             </span>
                        ) : (
-                           // Custom styling for specific sources
-                           <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-indigo-500/10 text-indigo-400 text-xs font-bold border border-indigo-500/20 max-w-[150px] truncate" title={booking.source}>
+                           <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-indigo-500/10 text-indigo-400 text-xs font-bold border border-indigo-500/20 max-w-[240px]" title={booking.source}>
                                <Globe className="w-3 h-3 shrink-0" /> 
-                               {booking.source}
+                               <span className="truncate">{booking.source}</span>
                            </span>
                        )}
                     </td>
                     <td className="px-6 py-4">
-                        {/* Static Badge - Removed Inline Dropdown */}
                         <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border ${STATUS_STYLES[booking.status] || STATUS_STYLES[(booking.status || '').toLowerCase()] || 'bg-slate-800 text-slate-400 border-slate-700'}`}>
                              {booking.status}
                         </div>
@@ -241,6 +238,87 @@ export const BookingsManager: React.FC = () => {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* --- MOBILE VIEW --- */}
+      <div className="md:hidden space-y-4">
+          {loading ? (
+             <div className="py-12 text-center text-blue-500 flex flex-col items-center gap-2">
+                 <Loader2 className="w-8 h-8 animate-spin" />
+                 <span className="text-sm font-medium">Loading appointments...</span>
+             </div>
+          ) : error ? (
+             <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6 text-center">
+                 <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-2" />
+                 <p className="text-white font-bold mb-1">Connection Failed</p>
+                 <p className="text-slate-400 text-sm mb-4">{error}</p>
+                 <button onClick={fetchBookings} className="px-4 py-2 bg-slate-800 rounded-lg text-white text-sm">Retry</button>
+             </div>
+          ) : bookings.length === 0 ? (
+             <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center">
+                 <p className="text-slate-500">No appointments found.</p>
+             </div>
+          ) : (
+            bookings.map((booking) => (
+                <div key={booking.bookingId} className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm active:border-blue-500/50 transition-colors">
+                    {/* Header: Name + Edit */}
+                    <div className="flex justify-between items-start mb-3">
+                        <div>
+                            <h3 className="font-bold text-white text-lg leading-tight mb-1">{booking.clientName}</h3>
+                            {booking.clientEmail && (
+                                <div className="flex items-center gap-1.5 text-slate-500 text-sm">
+                                    <Mail className="w-3.5 h-3.5 shrink-0" />
+                                    <span className="truncate max-w-[200px]">{booking.clientEmail}</span>
+                                </div>
+                            )}
+                        </div>
+                        <button 
+                            onClick={() => setEditingBooking(booking)}
+                            className="p-2 bg-slate-800 text-slate-400 rounded-lg hover:text-white hover:bg-slate-700 transition-colors"
+                            aria-label="Edit booking"
+                        >
+                            <Edit2 className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    {/* Status & Source Grid */}
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                        <div className="bg-slate-950/50 p-2.5 rounded-lg border border-slate-800/50">
+                            <span className="text-[10px] uppercase text-slate-500 font-bold block mb-1">Status</span>
+                            <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-bold border ${STATUS_STYLES[booking.status] || STATUS_STYLES[(booking.status || '').toLowerCase()] || 'bg-slate-800 text-slate-400 border-slate-700'}`}>
+                                {booking.status}
+                            </div>
+                        </div>
+                        <div className="bg-slate-950/50 p-2.5 rounded-lg border border-slate-800/50 overflow-hidden">
+                             <span className="text-[10px] uppercase text-slate-500 font-bold block mb-1">Source</span>
+                             {(booking.source === 'webhook' || booking.source === 'website_widget') ? (
+                                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-bold border w-full truncate ${booking.source === 'webhook' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
+                                    {booking.source === 'webhook' ? <Webhook className="w-3 h-3 shrink-0" /> : <Globe className="w-3 h-3 shrink-0" />} 
+                                    <span className="truncate">{booking.source === 'website_widget' ? 'Widget' : 'Webhook'}</span>
+                                </span>
+                             ) : (
+                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 text-xs font-bold border border-indigo-500/20 w-full">
+                                   <Globe className="w-3 h-3 shrink-0" /> 
+                                   <span className="truncate">{booking.source}</span>
+                                </span>
+                             )}
+                        </div>
+                    </div>
+
+                    {/* Footer: Date & Time */}
+                    <div className="flex flex-col gap-2 pt-3 border-t border-slate-800/50">
+                        <div className="flex items-center gap-2 text-sm text-slate-300">
+                            <Calendar className="w-4 h-4 text-blue-500 shrink-0" />
+                            <span className="font-medium">{formatAppointmentDate(booking.appointmentDate)}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
+                            <Clock className="w-3.5 h-3.5 shrink-0" />
+                            <span>Received: {new Date(booking.createdAt).toLocaleString()}</span>
+                        </div>
+                    </div>
+                </div>
+            ))
+          )}
       </div>
 
       {/* --- EDIT MODAL --- */}

@@ -19,6 +19,7 @@ import { TermsOfService } from './components/TermsOfService';
 import { Login } from './components/Login';
 import { ContentManager } from './components/ContentManager';
 import { BookingsManager } from './components/BookingsManager';
+import { ChatManager } from './components/ChatManager';
 import { Project, AppView, TeamMember, ClientImage, TechTool, AboutInfo } from './types';
 import { api } from './services/api';
 import { Loader2, Menu, ArrowUp } from 'lucide-react';
@@ -175,6 +176,10 @@ const App: React.FC = () => {
 
           {adminView === AppView.BOOKINGS && (
              <BookingsManager />
+          )}
+
+          {adminView === AppView.CHATS && (
+             <ChatManager />
           )}
 
           {adminView === AppView.CMS && (

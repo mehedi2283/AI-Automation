@@ -1,4 +1,4 @@
-import { Project, TeamMember, Workflow, ClientImage, TechTool, AboutInfo, Booking } from '../types';
+import { Project, TeamMember, Workflow, ClientImage, TechTool, AboutInfo, Booking, ChatSession } from '../types';
 
 // PRODUCTION URL
 const API_BASE_URL = 'https://automation-server-bm8q.onrender.com/api';
@@ -69,11 +69,7 @@ export const api = {
   },
   bookings: {
     getAll: async (): Promise<Booking[]> => {
-        const res = await fetch(`${API_BASE_URL}/bookings`);
-        if (!res.ok) {
-            throw new Error(`Failed to fetch bookings: ${res.status} ${res.statusText}`);
-        }
-        return res.json();
+        return safeGet<Booking[]>(`${API_BASE_URL}/bookings`, []);
     },
     update: async (bookingId: string, data: Partial<Booking>): Promise<Booking> => {
         const res = await fetch(`${API_BASE_URL}/bookings/${bookingId}`, {
@@ -85,6 +81,11 @@ export const api = {
             throw new Error(`Failed to update booking: ${res.status} ${res.statusText}`);
         }
         return res.json();
+    }
+  },
+  chats: {
+    getAll: async (): Promise<ChatSession[]> => {
+      return safeGet<ChatSession[]>(`${API_BASE_URL}/chats`, []);
     }
   },
   projects: {

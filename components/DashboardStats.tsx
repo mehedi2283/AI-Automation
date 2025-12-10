@@ -13,13 +13,6 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ projectsCount })
   const [bookingsCount, setBookingsCount] = useState(0);
   const [feedItems, setFeedItems] = useState<any[]>([]);
 
-  // Default mock messages to keep the feed lively if no bookings exist
-  const MOCK_CHATS = [
-    { id: 'm1', user: "Visitor #4092", text: "How much does a custom GHL setup cost?", time: "2 mins ago", type: "chat", timestamp: Date.now() - 120000 },
-    { id: 'm2', user: "Visitor #3310", text: "Do you offer white label services?", time: "15 mins ago", type: "chat", timestamp: Date.now() - 900000 },
-    { id: 'm3', user: "Visitor #9921", text: "I need an AI voice agent for real estate.", time: "3 hours ago", type: "chat", timestamp: Date.now() - 10800000 },
-  ];
-
   const formatTimeAgo = (date: Date) => {
     const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
     let interval = seconds / 31536000;
@@ -35,15 +28,42 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ projectsCount })
     return Math.floor(seconds) + " seconds ago";
   };
 
+  const getMessageContent = (msgData: any) => {
+    if (!msgData) return '';
+    let data = msgData;
+
+    // If data is a JSON string, try to parse it first
+    if (typeof data === 'string') {
+        try {
+            const parsed = JSON.parse(data);
+            data = parsed;
+        } catch (e) {
+            return data;
+        }
+    }
+
+    if (typeof data === 'object' && data !== null) {
+        if (data.content) return data.content;
+        if (data.message) return data.message;
+        if (data.text) return data.text;
+        if (data.output) return data.output;
+        return JSON.stringify(data);
+    }
+    return String(data);
+  };
+
   const fetchStats = async () => {
       try {
-          // Parallel fetch for stats and bookings
-          // catch() on bookings ensures dashboard doesn't crash if that endpoint is down
-          const [statsData, bookingsList] = await Promise.all([
+          // Parallel fetch for stats, bookings, and chats
+          const [statsData, bookingsList, chatsList] = await Promise.all([
               api.stats.get(),
               api.bookings.getAll().catch(err => {
                   console.warn("Bookings endpoint unavailable", err);
                   return [] as Booking[];
+              }),
+              api.chats.getAll().catch(err => {
+                  console.warn("Chats endpoint unavailable", err);
+                  return [];
               })
           ]);
 
@@ -62,10 +82,29 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ projectsCount })
               type: 'booking'
           }));
 
-          // Merge with mock chats and sort by time (newest first)
-          const combinedFeed = [...bookingFeedItems, ...MOCK_CHATS]
+          // Process chats for feed - take the last user message from recent sessions
+          const chatFeedItems = chatsList.map((chat, idx) => {
+             // Find last human message
+             const lastHumanMsg = [...chat.messages].reverse().find(m => m.type === 'human');
+             const content = lastHumanMsg ? getMessageContent(lastHumanMsg.data) : 'Started a conversation';
+             
+             // Calculate a visitor number based on reverse index
+             const visitorNumber = chatsList.length - idx;
+
+             return {
+                 id: chat._id,
+                 user: `Visitor #${visitorNumber}`,
+                 text: content.length > 80 ? content.slice(0, 80) + '...' : content,
+                 time: formatTimeAgo(new Date(chat.updatedAt || chat.createdAt || new Date())),
+                 timestamp: new Date(chat.updatedAt || chat.createdAt || new Date()).getTime(),
+                 type: 'chat'
+             };
+          });
+
+          // Combine and sort
+          const combinedFeed = [...bookingFeedItems, ...chatFeedItems]
               .sort((a, b) => b.timestamp - a.timestamp)
-              .slice(0, 10); // Show top 10 activities
+              .slice(0, 15); // Show top 15 activities
 
           setFeedItems(combinedFeed);
 
@@ -148,7 +187,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ projectsCount })
                         <h4 className="font-bold text-slate-200 text-sm group-hover:text-white transition-colors">{msg.user}</h4>
                         <span className="text-xs text-slate-500 font-mono">{msg.time}</span>
                     </div>
-                    <div className="text-sm text-slate-400 leading-relaxed">
+                    <div className="text-sm text-slate-400 leading-relaxed whitespace-pre-wrap break-words">
                         {msg.text}
                     </div>
                     </div>
