@@ -1,0 +1,7 @@
+{
+  "name": "Automation",
+  "description": "AI & Automation services. Scalable backend data processing and generative AI workflows.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
