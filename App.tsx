@@ -27,9 +27,22 @@ import { Loader2, Menu, ArrowUp } from 'lucide-react';
 type ViewState = 'HOME' | 'PROJECTS' | 'PROJECT_DETAIL' | 'ADMIN' | 'PRIVACY' | 'TERMS';
 
 const App: React.FC = () => {
-  // Main Site State
+  // Admin Dashboard State - Initialize from LocalStorage
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => {
+      return typeof window !== 'undefined' && localStorage.getItem('odl_admin_auth') === 'true';
+  });
+
+  // Main Site State - Initialize from LocalStorage for persistence
+  const [currentView, setCurrentView] = useState<ViewState>(() => {
+      const savedView = typeof window !== 'undefined' ? localStorage.getItem('odl_current_view') as ViewState : 'HOME';
+      // Only restore ADMIN view if authenticated
+      if (savedView === 'ADMIN') {
+          return localStorage.getItem('odl_admin_auth') === 'true' ? 'ADMIN' : 'HOME';
+      }
+      return savedView || 'HOME';
+  });
+
   const [isBookingOpen, setIsBookingOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<ViewState>('HOME');
   const [lastView, setLastView] = useState<ViewState>('HOME');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   
@@ -42,8 +55,6 @@ const App: React.FC = () => {
   
   const [isLoadingData, setIsLoadingData] = useState(true);
 
-  // Admin Dashboard State
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false); 
   const [adminView, setAdminView] = useState<AppView>(AppView.DASHBOARD);
   const [cmsSection, setCmsSection] = useState<string>('PROJECTS');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -100,6 +111,15 @@ const App: React.FC = () => {
   }, []);
 
   // Navigation Handlers
+  const updateView = (view: ViewState) => {
+      setCurrentView(view);
+      // Persist view state, but handle PROJECT_DETAIL carefully (it needs ID which we aren't persisting here for simplicity)
+      if (view !== 'PROJECT_DETAIL') {
+          localStorage.setItem('odl_current_view', view);
+      }
+      window.scrollTo(0, 0);
+  };
+
   const handleOpenProject = (project: Project) => {
     setSelectedProjectId(project.id);
     setLastView(currentView);
@@ -108,19 +128,16 @@ const App: React.FC = () => {
   };
 
   const handleBackToProjectList = () => {
-    setCurrentView(lastView);
-    window.scrollTo(0, 0);
+    updateView(lastView);
   };
 
   const handleLogin = () => {
-    setCurrentView('ADMIN');
-    window.scrollTo(0, 0);
+    updateView('ADMIN');
   };
 
   const handleNavigate = (view: ViewState) => {
     setLastView(currentView);
-    setCurrentView(view);
-    window.scrollTo(0, 0);
+    updateView(view);
   };
 
   const handleAdminNav = (view: AppView, section?: string) => {
@@ -139,7 +156,10 @@ const App: React.FC = () => {
   // Render Admin Dashboard
   if (currentView === 'ADMIN') {
     if (!isAdminAuthenticated) {
-        return <Login onLogin={() => setIsAdminAuthenticated(true)} />;
+        return <Login onLogin={() => {
+            setIsAdminAuthenticated(true);
+            localStorage.setItem('odl_admin_auth', 'true');
+        }} />;
     }
 
     return (
@@ -150,7 +170,11 @@ const App: React.FC = () => {
           onChangeView={handleAdminNav}
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
-          onLogout={() => setCurrentView('HOME')}
+          onLogout={() => {
+              updateView('HOME');
+              setIsAdminAuthenticated(false);
+              localStorage.removeItem('odl_admin_auth');
+          }}
         />
 
         {/* Mobile Header for Admin */}
@@ -226,8 +250,7 @@ const App: React.FC = () => {
             <CaseStudies 
               projects={projects}
               onViewAll={() => {
-                setCurrentView('PROJECTS');
-                window.scrollTo(0,0);
+                updateView('PROJECTS');
               }}
               onProjectClick={handleOpenProject}
             />
@@ -240,8 +263,7 @@ const App: React.FC = () => {
           <ProjectGallery 
             projects={projects}
             onBack={() => {
-              setCurrentView('HOME');
-              window.scrollTo(0,0);
+              updateView('HOME');
             }} 
             onProjectClick={handleOpenProject}
           />
