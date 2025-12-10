@@ -16,9 +16,6 @@ export const ChatBot: React.FC = () => {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  
-  // Create a persistent session ID for the user's visit
-  const sessionId = useRef(`session_${Math.random().toString(36).substr(2, 9)}`);
 
   // Auto-scroll
   useEffect(() => {
@@ -32,6 +29,17 @@ export const ChatBot: React.FC = () => {
     }
   }, [isOpen]);
 
+  // Initialize device ID if not present
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !localStorage.getItem("device_id")) {
+      // Fallback if crypto.randomUUID is not available (e.g. non-secure context)
+      const newId = typeof crypto.randomUUID === 'function' 
+        ? crypto.randomUUID() 
+        : `device_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem("device_id", newId);
+    }
+  }, []);
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
@@ -40,13 +48,16 @@ export const ChatBot: React.FC = () => {
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setIsLoading(true);
 
+    // Retrieve the persistent device ID
+    const deviceId = localStorage.getItem("device_id") || "unknown_device";
+
     try {
       const response = await fetch('https://n8n.srv915514.hstgr.cloud/webhook/automation', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
               message: userMsg,
-              sessionId: sessionId.current
+              device_id: deviceId
           })
       });
 
