@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { MessageSquare, User, Bot, Clock, Search, ChevronRight, Loader2, Calendar, ArrowLeft } from 'lucide-react';
 import { api } from '../services/api';
 import { ChatSession } from '../types';
@@ -27,8 +27,24 @@ export const ChatManager: React.FC = () => {
     fetchChats();
   }, []);
 
+  // Calculate stable Visitor Numbers based on creation date
+  // Sort by createdAt ASC -> Index + 1 is the Visitor Number
+  const visitorMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const sortedByCreation = [...sessions].sort((a, b) => {
+        const dateA = new Date(a.createdAt || 0).getTime();
+        const dateB = new Date(b.createdAt || 0).getTime();
+        return dateA - dateB;
+    });
+    sortedByCreation.forEach((session, index) => {
+        map.set(session._id, index + 1);
+    });
+    return map;
+  }, [sessions]);
+
   const filteredSessions = sessions.filter(s => 
       s.sessionId.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (visitorMap.get(s._id)?.toString() || '').includes(searchTerm) ||
       s.messages.some(m => {
           const content = typeof m.data === 'string' ? m.data : JSON.stringify(m.data);
           return content.toLowerCase().includes(searchTerm.toLowerCase());
@@ -99,7 +115,7 @@ export const ChatManager: React.FC = () => {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                     <input 
                         type="text" 
-                        placeholder="Search sessions..." 
+                        placeholder="Search visitor #..." 
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-blue-600 transition-colors"
@@ -113,7 +129,7 @@ export const ChatManager: React.FC = () => {
                         No chats found.
                     </div>
                 ) : (
-                    filteredSessions.map((session, index) => (
+                    filteredSessions.map((session) => (
                         <div 
                             key={session._id}
                             onClick={() => setSelectedSessionId(session._id)}
@@ -121,7 +137,7 @@ export const ChatManager: React.FC = () => {
                         >
                             <div className="flex justify-between items-start mb-1">
                                 <span className="text-sm font-bold text-slate-200 truncate max-w-[140px]" title={session.sessionId}>
-                                    Visitor #{filteredSessions.length - index}
+                                    Visitor #{visitorMap.get(session._id) || '?'}
                                 </span>
                                 <span className="text-[10px] text-slate-500 flex items-center gap-1">
                                     <Clock className="w-3 h-3" />
@@ -153,7 +169,7 @@ export const ChatManager: React.FC = () => {
                             <div>
                                 <h2 className="text-white font-bold flex items-center gap-2">
                                     <User className="w-4 h-4 text-slate-400" />
-                                    Visitor #{sessions.findIndex(s => s._id === selectedSession._id) !== -1 ? sessions.length - sessions.findIndex(s => s._id === selectedSession._id) : 'Unknown'}
+                                    Visitor #{visitorMap.get(selectedSession._id) || '?'}
                                 </h2>
                                 <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2 truncate max-w-[200px]" title={selectedSession.sessionId}>
                                     <span className="opacity-50">ID: {selectedSession.sessionId}</span>

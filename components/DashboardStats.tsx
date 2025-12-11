@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { MessageSquare, Calendar, Activity, FolderGit2, Users } from 'lucide-react';
 import { api } from '../services/api';
 import { Booking } from '../types';
@@ -32,7 +32,6 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ projectsCount })
     if (!msgData) return '';
     let data = msgData;
 
-    // If data is a JSON string, try to parse it first
     if (typeof data === 'string') {
         try {
             const parsed = JSON.parse(data);
@@ -54,7 +53,6 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ projectsCount })
 
   const fetchStats = async () => {
       try {
-          // Parallel fetch for stats, bookings, and chats
           const [statsData, bookingsList, chatsList] = await Promise.all([
               api.stats.get(),
               api.bookings.getAll().catch(err => {
@@ -69,10 +67,8 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ projectsCount })
 
           setUniqueVisitors(statsData.uniqueVisitors);
           setTotalVisits(statsData.totalVisits);
-          // Prefer the stats count, fallback to list length
           setBookingsCount(statsData.bookingsCount || bookingsList.length);
 
-          // Process bookings for feed
           const bookingFeedItems = bookingsList.map(b => ({
               id: b.bookingId,
               user: b.clientName || 'Unknown Client',
@@ -82,14 +78,17 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ projectsCount })
               type: 'booking'
           }));
 
-          // Process chats for feed - take the last user message from recent sessions
-          const chatFeedItems = chatsList.map((chat, idx) => {
-             // Find last human message
+          // Calculate stable Visitor Numbers for stats feed
+          const chatSortedByCreation = [...chatsList].sort((a, b) => 
+            new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
+          );
+          const visitorMap = new Map();
+          chatSortedByCreation.forEach((c, i) => visitorMap.set(c._id, i + 1));
+
+          const chatFeedItems = chatsList.map((chat) => {
              const lastHumanMsg = [...chat.messages].reverse().find(m => m.type === 'human');
              const content = lastHumanMsg ? getMessageContent(lastHumanMsg.data) : 'Started a conversation';
-             
-             // Calculate a visitor number based on reverse index
-             const visitorNumber = chatsList.length - idx;
+             const visitorNumber = visitorMap.get(chat._id) || '?';
 
              return {
                  id: chat._id,
@@ -101,10 +100,9 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ projectsCount })
              };
           });
 
-          // Combine and sort
           const combinedFeed = [...bookingFeedItems, ...chatFeedItems]
               .sort((a, b) => b.timestamp - a.timestamp)
-              .slice(0, 15); // Show top 15 activities
+              .slice(0, 15);
 
           setFeedItems(combinedFeed);
 
@@ -115,14 +113,12 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ projectsCount })
 
   useEffect(() => {
     fetchStats();
-    // Poll every 10 seconds for live updates
     const interval = setInterval(fetchStats, 10000);
     return () => clearInterval(interval);
   }, []);
 
   return (
     <div className="space-y-8">
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-slate-900/50 backdrop-blur-sm rounded-2xl p-6 flex items-center justify-between border border-slate-800 hover:border-slate-700 transition-colors shadow-lg">
           <div>
@@ -159,7 +155,6 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ projectsCount })
         </div>
       </div>
 
-      {/* Activity Feed */}
       <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
         <div className="p-6 border-b border-slate-800 flex items-center gap-3 bg-slate-900/80">
           <div className="p-2 bg-slate-800 rounded-lg border border-slate-700">

@@ -86,6 +86,17 @@ export const api = {
   chats: {
     getAll: async (): Promise<ChatSession[]> => {
       return safeGet<ChatSession[]>(`${API_BASE_URL}/chats`, []);
+    },
+    saveMessage: async (sessionId: string, message: { type: 'human' | 'ai', data: any }) => {
+        try {
+            await fetch(`${API_BASE_URL}/chats/message`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId, ...message })
+            });
+        } catch (e) {
+            console.error("Failed to save chat message", e);
+        }
     }
   },
   projects: {

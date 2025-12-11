@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, Send, Sparkles, Bot, ArrowUp, Loader2 } from 'lucide-react';
+import { api } from '../services/api';
 
 interface Message {
   role: 'user' | 'model';
@@ -51,6 +52,9 @@ export const ChatBot: React.FC = () => {
     // Retrieve the persistent device ID
     const deviceId = localStorage.getItem("device_id") || "unknown_device";
 
+    // SAVE USER MESSAGE TO BACKEND (Fire and forget)
+    api.chats.saveMessage(deviceId, { type: 'human', data: userMsg });
+
     try {
       const response = await fetch('https://n8n.srv915514.hstgr.cloud/webhook/automation', {
           method: 'POST',
@@ -98,9 +102,15 @@ export const ChatBot: React.FC = () => {
       }
 
       setMessages(prev => [...prev, { role: 'model', text: botText }]);
+      
+      // SAVE BOT MESSAGE TO BACKEND
+      api.chats.saveMessage(deviceId, { type: 'ai', data: botText });
+
     } catch (error) {
       console.error(error);
-      setMessages(prev => [...prev, { role: 'model', text: "Sorry, I'm having trouble connecting to the server. Please try again later." }]);
+      const errorMsg = "Sorry, I'm having trouble connecting to the server. Please try again later.";
+      setMessages(prev => [...prev, { role: 'model', text: errorMsg }]);
+      // Optionally save error message if needed, but skipping for now to avoid noise
     } finally {
       setIsLoading(false);
     }
