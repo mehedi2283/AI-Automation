@@ -69,20 +69,35 @@ export const ChatBot: React.FC = () => {
       let botText = "I didn't catch that. Could you rephrase?";
 
       if (response.ok) {
-          const data = await response.json();
-          // Check for common n8n return patterns (output property, or text property)
-          // If the webhook returns { "output": "Hello" } or { "text": "Hello" }
-          // Or if it returns an array [{ "output": "Hello" }]
+          // Read response as text first to handle both JSON and plain text responses
+          const responseText = await response.text();
           
-          let responseContent = data;
-          if (Array.isArray(data) && data.length > 0) {
-              responseContent = data[0];
-          }
+          try {
+              // Try parsing as JSON
+              const data = JSON.parse(responseText);
+              
+              let responseContent = data;
+              if (Array.isArray(data) && data.length > 0) {
+                  responseContent = data[0];
+              }
 
-          if (typeof responseContent === 'string') {
-              botText = responseContent;
-          } else if (typeof responseContent === 'object') {
-              botText = responseContent.output || responseContent.message || responseContent.text || responseContent.response || JSON.stringify(responseContent);
+              if (typeof responseContent === 'string') {
+                  botText = responseContent;
+              } else if (typeof responseContent === 'object' && responseContent !== null) {
+                  botText = responseContent.output || 
+                           responseContent.message || 
+                           responseContent.text || 
+                           responseContent.response || 
+                           JSON.stringify(responseContent);
+              } else {
+                 botText = String(responseContent);
+              }
+          } catch (e) {
+              // If JSON parsing fails, treat the raw text as the response
+              // This handles cases where the webhook returns plain text like "Hello!"
+              if (responseText && responseText.trim()) {
+                  botText = responseText;
+              }
           }
       } else {
           console.error("Webhook error:", response.status, response.statusText);
