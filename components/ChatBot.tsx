@@ -56,49 +56,37 @@ export const ChatBot: React.FC = () => {
     api.chats.saveMessage(deviceId, { type: 'human', data: userMsg });
 
     try {
-      const response = await fetch('https://odl.app.n8n.cloud/webhook/adb9c773-da62-4f9b-87b0-96078aed80aa', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-              message: userMsg,
-              device_id: deviceId
-          })
+      const response = await fetch("https://odl.app.n8n.cloud/webhook/adb9c773-da62-4f9b-87b0-96078aed80aa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+            message: userMsg, 
+            sessionId: deviceId,
+            timestamp: new Date().toISOString()
+        }),
       });
 
-      if (!response.ok) {
-          throw new Error('Network response was not ok');
-      }
+      let botText = "I didn't catch that. Could you rephrase?";
 
-      const textResponse = await response.text();
-      let botText = "";
-
-      try {
-          // Try parsing JSON response
-          const data = JSON.parse(textResponse);
+      if (response.ok) {
+          const data = await response.json();
+          // Check for common n8n return patterns (output property, or text property)
+          // If the webhook returns { "output": "Hello" } or { "text": "Hello" }
+          // Or if it returns an array [{ "output": "Hello" }]
           
-          if (typeof data === 'string') {
-              botText = data;
-          } else if (data.output) {
-              botText = data.output;
-          } else if (data.text) {
-              botText = data.text;
-          } else if (data.message) {
-              botText = data.message;
-          } else if (data.content) {
-              botText = data.content;
-          } else if (Array.isArray(data) && data[0]?.output) {
-              botText = data[0].output;
-          } else {
-              // Fallback for unknown JSON structure but valid JSON
-              botText = JSON.stringify(data);
+          let responseContent = data;
+          if (Array.isArray(data) && data.length > 0) {
+              responseContent = data[0];
           }
-      } catch (e) {
-          // If not JSON, use raw text if available
-          if (textResponse && textResponse.trim().length > 0) {
-              botText = textResponse;
-          } else {
-              botText = "I processed your request.";
+
+          if (typeof responseContent === 'string') {
+              botText = responseContent;
+          } else if (typeof responseContent === 'object') {
+              botText = responseContent.output || responseContent.message || responseContent.text || responseContent.response || JSON.stringify(responseContent);
           }
+      } else {
+          console.error("Webhook error:", response.status, response.statusText);
+          botText = "Sorry, I'm having trouble connecting to the server. Please try again.";
       }
 
       setMessages(prev => [...prev, { role: 'model', text: botText }]);
@@ -108,9 +96,8 @@ export const ChatBot: React.FC = () => {
 
     } catch (error) {
       console.error(error);
-      const errorMsg = "Sorry, I'm having trouble connecting to the server. Please try again later.";
+      const errorMsg = "Sorry, I'm having trouble connecting to the AI service. Please try again later.";
       setMessages(prev => [...prev, { role: 'model', text: errorMsg }]);
-      // Optionally save error message if needed, but skipping for now to avoid noise
     } finally {
       setIsLoading(false);
     }
