@@ -56,7 +56,7 @@ export const ChatBot: React.FC = () => {
     api.chats.saveMessage(deviceId, { type: 'human', data: userMsg });
 
     try {
-      const response = await fetch('https://n8n.srv915514.hstgr.cloud/webhook/automation', {
+      const response = await fetch('https://odl.app.n8n.cloud/webhook/adb9c773-da62-4f9b-87b0-96078aed80aa', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
